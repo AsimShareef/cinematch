@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon_camera, icon_reel, icon_clapper, icon_sparkle %}
+{% block title %}Mood Search — CineMatch{% endblock %}
+
+{% block content %}
+  <section class="glass glass-strong mood-hero mb-5">
+    <div class="spotlight"></div>
+    <div class="deco-icon deco-camera">{{ icon_camera("w-100 h-100") }}</div>
+    <div class="deco-icon deco-reel">{{ icon_reel("w-100 h-100") }}</div>
+    <div class="deco-icon deco-clapper">{{ icon_clapper("w-100 h-100") }}</div>
+
+    <h1 class="display-6 fw-bold mb-2">What's your mood tonight?</h1>
+    <p class="text-muted mb-4" style="max-width: 520px; margin-inline: auto;">
+      Describe how you're feeling — or what kind of night you're after — and our
+      zero-shot mood classifier will re-rank recommendations to match.
+    </p>
+
+    <div class="mood-input-wrap">
+      <form id="mood-form">
+        <textarea id="mood-input" class="mood-textarea mb-3"
+                  placeholder="e.g. 'something cozy and heartwarming for a rainy evening' or 'I want to be terrified'"></textarea>
+        <div class="d-flex flex-wrap gap-2 justify-content-center mb-4" id="mood-chip-row">
+          <button type="button" class="mood-chip" data-mood="cozy and heartwarming">Cozy</button>
+          <button type="button" class="mood-chip" data-mood="edge-of-your-seat thrilling">Thrilling</button>
+          <button type="button" class="mood-chip" data-mood="laugh-out-loud funny">Feel-good</button>
+          <button type="button" class="mood-chip" data-mood="dark, gritty and intense">Dark &amp; Gritty</button>
+          <button type="button" class="mood-chip" data-mood="mind-bending and thought-provoking">Mind-bending</button>
+          <button type="button" class="mood-chip" data-mood="romantic and heartfelt">Romantic</button>
+          <button type="button" class="mood-chip" data-mood="nostalgic and sentimental">Nostalgic</button>
+          <button type="button" class="mood-chip" data-mood="epic and adventurous">Adventurous</button>
+        </div>
+        <button type="submit" class="btn btn-glass btn-lg px-5">Find my movies</button>
+      </form>
+    </div>
+  </section>
+
+  <section id="mood-results-section" style="display:none;">
+    <h2 class="h4 mood-results-heading mb-3">
+      {{ icon_sparkle("icon-sparkle") }}
+      <span id="mood-results-label">Curated for your mood</span>
+    </h2>
+    <div class="row" id="mood-results-grid"></div>
+  </section>
+
+  <section class="glass glass-panel text-center nav-auth-out" id="mood-signed-out" style="display:none;">
+    <p class="mb-2">Mood-based recommendations use your rating history for a better match.</p>
+    <a href="/login" class="btn btn-glass-outline me-2">Log in</a>
+    <a href="/register" class="btn btn-glass">Sign up</a>
+  </section>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/movies.js') }}"></script>
+  <script>
+    const moodForm = document.getElementById('mood-form');
+    const moodInput = document.getElementById('mood-input');
+    const chipRow = document.getElementById('mood-chip-row');
+    const resultsSection = document.getElementById('mood-results-section');
+    const resultsGrid = document.getElementById('mood-results-grid');
+    const resultsLabel = document.getElementById('mood-results-label');
+
+    chipRow.addEventListener('click', (e) => {
+      const chip = e.target.closest('.mood-chip');
+      if (!chip) return;
+
+      chipRow.querySelectorAll('.mood-chip').forEach((c) => c.classList.remove('active'));
+      chip.classList.add('active');
+      moodInput.value = chip.dataset.mood;
+      moodForm.requestSubmit();
+    });
+
+    moodForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const mood = moodInput.value.trim();
+      if (!mood) return;
+
+      if (!isLoggedIn()) {
+        window.location.href = '/login';
+        return;
+      }
+
+      resultsSection.style.display = '';
+      resultsGrid.innerHTML = cinemaLoaderHtml('Reading the room...');
+      resultsGrid.className = '';
+      showCurtain();
+
+      const { ok, body } = await apiFetch('/recommendations/mood', {
+        method: 'POST',
+        body: JSON.stringify({ mood_text: mood, top_k: 20 }),
+      });
+
+      resultsGrid.className = 'row';
+      if (ok && body.recommendations && body.recommendations.length) {
+        resultsLabel.textContent = `Curated for "${mood}"`;
+        renderMovieGrid(resultsGrid, body.recommendations);
+      } else {
+        resultsLabel.textContent = 'Curated for your mood';
+        resultsGrid.innerHTML = `<div class="empty-state w-100">${(body && body.message) || 'No matches yet — try a different mood.'}</div>`;
+      }
+
+      resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      openCurtain(200);
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      if (!isLoggedIn()) {
+        document.getElementById('mood-signed-out').style.display = '';
+      }
+    });
+  </script>
+{% endblock %}

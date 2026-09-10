@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}My Profile — CineMatch{% endblock %}
+
+{% block content %}
+  <div id="profile-header" class="mb-4 glass glass-panel"></div>
+
+  <ul class="nav nav-tabs mb-4">
+    <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-watchlist" type="button">Watchlist</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-ratings" type="button">My Ratings</button></li>
+  </ul>
+
+  <div class="tab-content">
+    <div class="tab-pane fade show active" id="tab-watchlist">
+      <div class="row" id="watchlist-container"></div>
+    </div>
+    <div class="tab-pane fade" id="tab-ratings">
+      <div id="ratings-container" class="glass glass-panel"></div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/movies.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/watchlist.js') }}"></script>
+  <script>
+    async function renderRatings(container) {
+      const { ok, body } = await apiFetch('/profile/ratings');
+      if (!ok || !body.ratings || body.ratings.length === 0) {
+        container.innerHTML = '<div class="empty-state">You haven\'t rated any movies yet.</div>';
+        return;
+      }
+
+      container.innerHTML = `
+        <table class="table">
+          <thead><tr><th>Movie</th><th>Your rating</th><th>Rated on</th></tr></thead>
+          <tbody>
+            ${body.ratings
+              .map(
+                (r) => `
+              <tr>
+                <td><a href="/movie/${r.movie_id}">${escapeHtml(r.title || 'Untitled')}</a></td>
+                <td>${starRatingHtml(r.score)} (${r.score})</td>
+                <td class="text-muted small">${new Date(r.rated_at).toLocaleDateString()}</td>
+              </tr>
+            `
+              )
+              .join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      if (!requireAuth()) return;
+
+      const header = document.getElementById('profile-header');
+      header.innerHTML = cinemaLoaderHtml('Loading profile...');
+      document.getElementById('watchlist-container').innerHTML = cinemaLoaderHtml('Loading watchlist...');
+      document.getElementById('ratings-container').innerHTML = cinemaLoaderHtml('Loading ratings...');
+
+      const { ok, body } = await apiFetch('/auth/me');
+      if (ok) {
+        header.innerHTML = `
+          <h1 class="h4">${escapeHtml(body.username)}</h1>
+          <p class="text-muted mb-0">${escapeHtml(body.email)}</p>
+          <p class="small text-muted">
+            ${body.rating_count} ratings &middot;
+            cold-start factor ${(body.cold_start_alpha * 100).toFixed(0)}%
+          </p>
+        `;
+      }
+
+      renderWatchlist(document.getElementById('watchlist-container'));
+      renderRatings(document.getElementById('ratings-container'));
+    });
+  </script>
+{% endblock %}

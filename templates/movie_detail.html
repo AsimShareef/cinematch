@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Movie — CineMatch{% endblock %}
+
+{% block content %}
+  <div id="movie-detail-container" class="glass glass-panel"></div>
+
+  <section class="mt-5">
+    <h2 class="h5 mb-3">Similar movies</h2>
+    <div class="row" id="similar-grid"></div>
+  </section>
+
+  <section class="mt-5">
+    <h2 class="h5 mb-3">Reviews</h2>
+    <form id="review-form" class="mb-3 nav-auth-in glass glass-panel" style="display:none;">
+      <textarea class="mood-textarea mb-2" id="review-text" rows="3" placeholder="Write a review..." required></textarea>
+      <div class="d-flex justify-content-between align-items-center">
+        <span class="text-danger small" id="review-status"></span>
+        <button class="btn btn-glass btn-sm" type="submit">Post review</button>
+      </div>
+    </form>
+    <div id="reviews-list" class="glass glass-panel"></div>
+  </section>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/movies.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/ratings.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/watchlist.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/recommendations.js') }}"></script>
+  <script>
+    const MOVIE_ID = {{ movie_id }};
+
+    function renderMovie(movie) {
+      const genres = (movie.genres || [])
+        .map((g) => (typeof g === 'object' ? g.name : g))
+        .filter(Boolean);
+      const cast = (movie.cast || []).join(', ');
+
+      document.getElementById('movie-detail-container').innerHTML = `
+        <div class="row g-4">
+          <div class="col-md-4">
+            <div class="poster-box" style="aspect-ratio:2/3;">
+              ${movie.poster_url ? `<img src="${movie.poster_url}" alt="${escapeHtml(movie.title)}">` : escapeHtml(movie.title || '')}
+            </div>
+          </div>
+          <div class="col-md-8">
+            <h1 class="h3">${escapeHtml(movie.title || 'Untitled')}</h1>
+            <div class="mb-2">
+              ${genres.map((g) => `<span class="badge bg-light text-dark border genre-badge me-1">${escapeHtml(g)}</span>`).join('')}
+            </div>
+            <p class="text-muted">${escapeHtml(movie.overview || 'No overview available.')}</p>
+            ${movie.director ? `<p class="small"><strong>Director:</strong> ${escapeHtml(movie.director)}</p>` : ''}
+            ${cast ? `<p class="small"><strong>Cast:</strong> ${escapeHtml(cast)}</p>` : ''}
+
+            <div class="d-flex align-items-center gap-3 mt-3 flex-wrap">
+              <div>
+                <div class="star-rating" id="star-rating"></div>
+                <div class="small text-muted" id="rating-status">
+                  Average: ${movie.avg_rating ? movie.avg_rating.toFixed(1) : '—'} (${movie.vote_count || 0} ratings)
+                </div>
+              </div>
+              <button class="btn btn-glass-outline" id="watchlist-btn" disabled>Loading...</button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      const starEl = document.getElementById('star-rating');
+      const statusEl = document.getElementById('rating-status');
+      const handleStarSelect = (score) => {
+        renderStars(starEl, score, handleStarSelect);
+        submitRating(MOVIE_ID, score, statusEl);
+      };
+      renderStars(starEl, 0, handleStarSelect);
+
+      const watchlistBtn = document.getElementById('watchlist-btn');
+      refreshWatchlistButton(MOVIE_ID, watchlistBtn);
+      watchlistBtn.addEventListener('click', () => toggleWatchlist(MOVIE_ID, watchlistBtn));
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      document.getElementById('movie-detail-container').innerHTML = cinemaLoaderHtml('Loading movie...');
+      document.getElementById('reviews-list').innerHTML = cinemaLoaderHtml('Loading reviews...');
+
+      const { ok, body } = await apiFetch(`/movies/${MOVIE_ID}`);
+      if (ok) {
+        renderMovie(body);
+      } else {
+        document.getElementById('movie-detail-container').innerHTML =
+          '<div class="empty-state">Movie not found.</div>';
+      }
+
+      loadSimilarMovies(document.getElementById('similar-grid'), MOVIE_ID);
+      loadReviews(MOVIE_ID, document.getElementById('reviews-list'));
+
+      if (isLoggedIn()) {
+        document.getElementById('review-form').style.display = '';
+      }
+
+      document.getElementById('review-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const textEl = document.getElementById('review-text');
+        const statusEl = document.getElementById('review-status');
+        const text = textEl.value.trim();
+        if (!text) return;
+        submitReview(MOVIE_ID, text, statusEl, document.getElementById('reviews-list'));
+        textEl.value = '';
+      });
+    });
+  </script>
+{% endblock %}

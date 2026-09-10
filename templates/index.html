@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon_reel %}
+{% block title %}CineMatch — Home{% endblock %}
+
+{% block content %}
+  <div class="glass glass-strong p-4 p-md-5 mb-5 detail-hero">
+    <div class="film-deco">{{ icon_reel("w-100 h-100") }}</div>
+    <h1 class="mb-2">Find your next favorite movie</h1>
+    <p class="mb-4 text-muted">Hybrid recommendations powered by collaborative filtering, semantic search and mood-based reranking.</p>
+    <a href="/mood" class="btn btn-glass btn-lg">✦ Try Mood Search</a>
+  </div>
+
+  <section class="mb-5 nav-auth-in" id="recs-section" style="display:none;">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h2 class="h4 mb-0">Recommended for you</h2>
+    </div>
+    <div class="row" id="recommendations-grid"></div>
+  </section>
+
+  <section class="mb-5 nav-auth-out glass glass-panel" id="recs-signed-out">
+    <a href="/login">Log in</a> or <a href="/register">sign up</a> to get personalized recommendations.
+  </section>
+
+  <section>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h2 class="h4 mb-0">Browse movies</h2>
+    </div>
+    <div class="row" id="movies-grid"></div>
+  </section>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/movies.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/recommendations.js') }}"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      const moviesGrid = document.getElementById('movies-grid');
+      moviesGrid.innerHTML = cinemaLoaderHtml('Rolling film...');
+      const { ok, body } = await fetchMovies({ perPage: 20 });
+      moviesGrid.className = 'row';
+      if (ok) {
+        renderMovieGrid(moviesGrid, body.movies);
+      } else {
+        moviesGrid.innerHTML = '<div class="empty-state w-100">Could not load movies.</div>';
+      }
+
+      if (isLoggedIn()) {
+        document.getElementById('recs-section').style.display = '';
+        loadRecommendations(document.getElementById('recommendations-grid'));
+      }
+    });
+  </script>
+{% endblock %}

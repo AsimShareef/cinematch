@@ -1,0 +1,78 @@
+{% from "_icons.html" import icon_camera, icon_reel %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}CineMatch{% endblock %}</title>
+  <link href="{{ url_for('static', filename='vendor/bootstrap/css/bootstrap.min.css') }}" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="{{ url_for('static', filename='css/custom.css') }}" rel="stylesheet">
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+  <div class="ambient-bg">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+  </div>
+
+  <div class="curtain-overlay" id="curtain-overlay">
+    <div class="curtain-panel left"></div>
+    <div class="curtain-panel right"></div>
+    <div class="curtain-center-mark">
+      {{ icon_reel("reel-spinner") }}
+    </div>
+  </div>
+
+  <nav class="navbar navbar-expand-lg cine-navbar glass glass-pill">
+    <div class="container-fluid px-2">
+      <a class="navbar-brand" href="/">
+        {{ icon_camera("brand-icon") }}
+        Cine<span class="brand-accent">Match</span>
+      </a>
+      <button class="navbar-toggler border-0 text-light" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <form class="d-flex mx-lg-auto my-2 my-lg-0" style="max-width: 380px; width: 100%;" action="/search" method="get">
+          <input class="form-control search-glass" type="search" name="q" placeholder="Search movies..."
+                 value="{{ request.args.get('q', '') }}" aria-label="Search">
+        </form>
+        <ul class="navbar-nav ms-lg-2 align-items-lg-center gap-lg-1">
+          <li class="nav-item">
+            <a class="nav-link nav-link-mood" href="/mood">✦ Mood Search</a>
+          </li>
+          <li class="nav-item nav-auth-in" style="display:none;">
+            <a class="nav-link" href="/profile">My Profile (<span class="nav-username">you</span>)</a>
+          </li>
+          <li class="nav-item nav-auth-in" style="display:none;">
+            <a class="nav-link" href="#" id="logout-btn">Log out</a>
+          </li>
+          <li class="nav-item nav-auth-out" style="display:none;">
+            <a class="nav-link" href="/login">Log in</a>
+          </li>
+          <li class="nav-item nav-auth-out" style="display:none;">
+            <a class="btn btn-glass btn-sm ms-lg-2" href="/register">Sign up</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container py-4">
+    {% block content %}{% endblock %}
+  </main>
+
+  <div class="filmstrip-divider container"></div>
+
+  <footer class="site-footer text-center py-4 small">
+    Built with Flask, SQLAlchemy &amp; a hybrid SVD + semantic + mood recommendation engine.
+  </footer>
+
+  <script src="{{ url_for('static', filename='vendor/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/cinema.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/api.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
